@@ -10,6 +10,16 @@ class Balances(
     val lockedBalanceFiat: BigDecimal
 )
 
+class BalanceLocks(
+    val locks: List<Lock>
+) {
+    class Lock(
+        val id: String,
+        val amount: BigDecimal,
+        val reasons: String
+    )
+}
+
 class AssetGroup(
     val chain: Chain,
     val groupBalanceFiat: BigDecimal,

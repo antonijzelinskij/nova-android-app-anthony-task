@@ -13,17 +13,13 @@ import io.novafoundation.nova.feature_assets.domain.send.SendInteractor
 import io.novafoundation.nova.feature_assets.presentation.AssetPayload
 import io.novafoundation.nova.feature_assets.presentation.WalletRouter
 import io.novafoundation.nova.feature_assets.presentation.balance.assetActions.buy.BuyMixinFactory
-import io.novafoundation.nova.feature_assets.presentation.model.AssetModel
 import io.novafoundation.nova.feature_assets.presentation.transaction.history.mixin.TransactionHistoryMixin
 import io.novafoundation.nova.feature_assets.presentation.transaction.history.mixin.TransactionHistoryUi
 import io.novafoundation.nova.feature_wallet_api.domain.model.Asset
+import io.novafoundation.nova.feature_wallet_api.domain.model.BalanceLocks
 import io.novafoundation.nova.feature_wallet_api.presentation.model.mapAmountToAmountModel
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 class BalanceDetailViewModel(
     private val interactor: WalletInteractor,
@@ -38,8 +34,8 @@ class BalanceDetailViewModel(
     private val _hideRefreshEvent = MutableLiveData<Event<Unit>>()
     val hideRefreshEvent: LiveData<Event<Unit>> = _hideRefreshEvent
 
-    private val _showLockedDetailsEvent = MutableLiveData<Event<AssetModel>>()
-    val showFrozenDetailsEvent: LiveData<Event<AssetModel>> = _showLockedDetailsEvent
+    private val _showLockedDetailsEvent = MutableLiveData<Event<BalanceLocksModel>>()
+    val showLockedDetailsEvent: LiveData<Event<BalanceLocksModel>> = _showLockedDetailsEvent
 
     private val assetFlow = interactor.assetFlow(assetPayload.chainId, assetPayload.chainAssetId)
         .inBackground()
@@ -101,7 +97,11 @@ class BalanceDetailViewModel(
     }
 
     fun lockedInfoClicked() = launch {
-        _showLockedDetailsEvent.value = Event(assetModel.first())
+        val balanceLocksModel = withContext(Dispatchers.IO) {
+            val balanceLocks = interactor.getBalanceLocks(assetPayload.chainId, assetPayload.chainAssetId)
+            mapBalanceLocksToUi(balanceLocks)
+        }
+        _showLockedDetailsEvent.value = Event(balanceLocksModel)
     }
 
     private fun mapAssetToUi(asset: Asset): AssetDetailsModel {
@@ -110,6 +110,14 @@ class BalanceDetailViewModel(
             total = mapAmountToAmountModel(asset.total, asset),
             transferable = mapAmountToAmountModel(asset.transferable, asset),
             locked = mapAmountToAmountModel(asset.locked, asset)
+        )
+    }
+
+    private fun mapBalanceLocksToUi(balanceLocks: BalanceLocks): BalanceLocksModel {
+        return BalanceLocksModel(
+            balanceLocks.locks.map {
+                BalanceLocksModel.Lock(it.id, it.amount, it.reasons)
+            }
         )
     }
 }

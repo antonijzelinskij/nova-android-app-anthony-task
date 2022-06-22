@@ -25,7 +25,7 @@ interface StorageQueryContext {
         binding: (String?, K) -> V
     ): Map<K, V>
 
-    suspend fun <K, V> StorageEntry.query(
+    suspend fun <V> StorageEntry.query(
         vararg keyArguments: Any?,
         binding: (scale: String?) -> V
     ): V

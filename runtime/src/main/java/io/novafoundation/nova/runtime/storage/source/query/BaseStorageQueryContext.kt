@@ -53,14 +53,14 @@ abstract class BaseStorageQueryContext(
         return applyMappersToEntries(entries, storageEntry = this, keyExtractor, binding)
     }
 
-    override suspend fun <K, V> StorageEntry.query(
+    override suspend fun <V> StorageEntry.query(
         vararg keyArguments: Any?,
         binding: (scale: String?) -> V
     ): V {
         val storageKey = if (keyArguments.isEmpty()) {
             storageKey()
         } else {
-            storageKey(runtime, keyArguments)
+            storageKey(runtime, *keyArguments)
         }
 
         return binding(queryKey(storageKey, at))

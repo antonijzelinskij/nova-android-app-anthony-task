@@ -12,11 +12,13 @@ import io.novafoundation.nova.feature_wallet_api.data.cache.AssetCache
 import io.novafoundation.nova.feature_wallet_api.data.cache.bindAccountInfoOrDefault
 import io.novafoundation.nova.feature_wallet_api.data.cache.updateAsset
 import io.novafoundation.nova.feature_wallet_api.data.network.blockhain.assets.balances.AssetBalance
+import io.novafoundation.nova.feature_wallet_api.domain.model.BalanceLocks
 import io.novafoundation.nova.feature_wallet_impl.data.network.blockchain.SubstrateRemoteSource
 import io.novafoundation.nova.runtime.ext.utilityAsset
 import io.novafoundation.nova.runtime.multiNetwork.ChainRegistry
 import io.novafoundation.nova.runtime.multiNetwork.chain.model.Chain
 import io.novafoundation.nova.runtime.multiNetwork.getRuntime
+import io.novafoundation.nova.runtime.storage.source.StorageDataSource
 import jp.co.soramitsu.fearless_utils.runtime.AccountId
 import jp.co.soramitsu.fearless_utils.runtime.metadata.storage
 import jp.co.soramitsu.fearless_utils.runtime.metadata.storageKey
@@ -29,7 +31,22 @@ class NativeAssetBalance(
     private val chainRegistry: ChainRegistry,
     private val assetCache: AssetCache,
     private val substrateRemoteSource: SubstrateRemoteSource,
+    private val storageDataSource: StorageDataSource
 ) : AssetBalance {
+
+    override suspend fun queryBalanceLocks(
+        chain: Chain,
+        chainAsset: Chain.Asset,
+        accountId: AccountId
+    ): BalanceLocks {
+        return storageDataSource.query(chain.id) {
+            runtime.metadata.balances().storage("Locks").query(accountId, binding = ::bindLockedBalances)
+        }
+    }
+
+    private fun bindLockedBalances(decoded: Any?): BalanceLocks {
+        return BalanceLocks(listOf()) // stub
+    }
 
     override suspend fun existentialDeposit(chain: Chain, chainAsset: Chain.Asset): BigInteger {
         val runtime = chainRegistry.getRuntime(chain.id)

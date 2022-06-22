@@ -9,13 +9,10 @@ import io.novafoundation.nova.feature_account_api.domain.model.MetaAccount
 import io.novafoundation.nova.feature_account_api.domain.model.accountIdIn
 import io.novafoundation.nova.feature_assets.data.repository.assetFilters.AssetFiltersRepository
 import io.novafoundation.nova.feature_nft_api.data.repository.NftRepository
+import io.novafoundation.nova.feature_wallet_api.data.network.blockhain.assets.AssetSourceRegistry
 import io.novafoundation.nova.feature_wallet_api.domain.interfaces.TransactionFilter
 import io.novafoundation.nova.feature_wallet_api.domain.interfaces.WalletRepository
-import io.novafoundation.nova.feature_wallet_api.domain.model.Asset
-import io.novafoundation.nova.feature_wallet_api.domain.model.AssetGroup
-import io.novafoundation.nova.feature_wallet_api.domain.model.Balances
-import io.novafoundation.nova.feature_wallet_api.domain.model.Operation
-import io.novafoundation.nova.feature_wallet_api.domain.model.OperationsPageChange
+import io.novafoundation.nova.feature_wallet_api.domain.model.*
 import io.novafoundation.nova.runtime.ext.commissionAsset
 import io.novafoundation.nova.runtime.multiNetwork.ChainRegistry
 import io.novafoundation.nova.runtime.multiNetwork.chain.model.ChainId
@@ -36,7 +33,16 @@ class WalletInteractorImpl(
     private val assetFiltersRepository: AssetFiltersRepository,
     private val chainRegistry: ChainRegistry,
     private val nftRepository: NftRepository,
+    private val assetSourceRegistry: AssetSourceRegistry,
 ) : WalletInteractor {
+
+    override suspend fun getBalanceLocks(chainId: ChainId, chainAssetId: Int): BalanceLocks {
+        val (chain, chainAsset) = chainRegistry.chainWithAsset(chainId, chainAssetId)
+        val assetSource = assetSourceRegistry.sourceFor(chainAsset)
+        val metaAccount = accountRepository.getSelectedMetaAccount()
+        val accountId = metaAccount.accountIdIn(chain) ?: throw NoSuchElementException()
+        return assetSource.balance.queryBalanceLocks(chain, chainAsset, accountId)
+    }
 
     override fun balancesFlow(): Flow<Balances> {
         val assetsFlow = accountRepository.selectedMetaAccountFlow()
@@ -161,17 +167,17 @@ class WalletInteractorImpl(
         groupedAssets: GroupedList<AssetGroup, Asset>
     ):
         Balances {
-            val (totalFiat, lockedFiat) = assets.fold(BigDecimal.ZERO to BigDecimal.ZERO) { (total, locked), asset ->
-                val assetTotalFiat = asset.token.fiatAmount(asset.total)
-                val assetLockedFiat = asset.token.fiatAmount(asset.locked)
+        val (totalFiat, lockedFiat) = assets.fold(BigDecimal.ZERO to BigDecimal.ZERO) { (total, locked), asset ->
+            val assetTotalFiat = asset.token.fiatAmount(asset.total)
+            val assetLockedFiat = asset.token.fiatAmount(asset.locked)
 
-                (total + assetTotalFiat) to (locked + assetLockedFiat)
-            }
-
-            return Balances(
-                assets = groupedAssets,
-                totalBalanceFiat = totalFiat,
-                lockedBalanceFiat = lockedFiat
-            )
+            (total + assetTotalFiat) to (locked + assetLockedFiat)
         }
+
+        return Balances(
+            assets = groupedAssets,
+            totalBalanceFiat = totalFiat,
+            lockedBalanceFiat = lockedFiat
+        )
+    }
 }

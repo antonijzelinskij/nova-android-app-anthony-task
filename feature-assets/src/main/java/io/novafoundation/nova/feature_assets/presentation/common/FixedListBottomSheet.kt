@@ -15,3 +15,11 @@ fun FixedListBottomSheet.currencyItem(@StringRes label: Int, value: BigDecimal) 
         view.itemCurrencyValue.text = value.format()
     }
 }
+
+fun FixedListBottomSheet.currencyItem(label: String, value: BigDecimal) {
+    item(R.layout.item_sheet_currency) { view ->
+        view.itemCurrencyLabel.text = label
+
+        view.itemCurrencyValue.text = value.format()
+    }
+}
